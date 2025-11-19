@@ -2,6 +2,7 @@
 #include <ui/ui.h>
 #include "../home_screen.h"
 #include "wifi_settings_screen.h"
+#include "display_settings_screen.h"
 #include "../../components/settings/settings_button.h"
 #include "../../components/settings/settings_card.h"
 
@@ -32,7 +33,7 @@ void SettingsScreen::init() {
     lv_obj_t *title = lv_label_create(wrapper);
     lv_label_set_text(title, "Settings");
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
 
     lv_obj_t *top_card = ui_settings_card(wrapper);
     
@@ -47,6 +48,11 @@ void SettingsScreen::init() {
     });
     ui_settings_button(connections_card, LV_SYMBOL_BLUETOOTH, "Bluetooth", NULL);
 
+    lv_obj_t *display_card = ui_settings_card(wrapper);
+
+    ui_settings_button(display_card, LV_SYMBOL_HOME, "Display", []() {
+        switch_screen(new DisplaySettingsScreen());
+    });
 }
 
 void SettingsScreen::handle_events() {

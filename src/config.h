@@ -11,6 +11,10 @@ struct WiFiConfig {
     int connectionTimeout;
 };
 
+struct BluetoothConfig {
+    char btAddr[6];
+};
+
 struct AudioConfig {
     int volume;
     bool muteOnStart;
@@ -21,18 +25,19 @@ struct DisplayConfig {
     bool autoBrightness;
 };
 
-struct Config {
-    WiFiConfig wifi;
-    AudioConfig audio;
-    DisplayConfig display;
-    CalibrationConfig calibration;
-};
-
 struct CalibrationConfig {
     int touchMinX;
     int touchMaxX;
     int touchMinY;
     int touchMaxY;
+};
+
+struct Config {
+    WiFiConfig wifi;
+    BluetoothConfig bluetooth;
+    AudioConfig audio;
+    DisplayConfig display;
+    CalibrationConfig calibration;
 };
 
 // External declaration - the actual instance will be defined in config.cpp

@@ -154,9 +154,7 @@ void show_password_dialog(const char *ssid)
 
 void init_wifi_networks_card(lv_obj_t *parent)
 {
-    WiFi.mode(WIFI_STA);
     wifi_networks_card = ui_settings_card(parent);
-    currently_scanning = true;
     found_networks.clear();
 
     lv_obj_t *networks_title = lv_label_create(wifi_networks_card);
@@ -164,7 +162,9 @@ void init_wifi_networks_card(lv_obj_t *parent)
     lv_obj_set_style_text_color(networks_title, lv_color_hex(0x000000), 0);
     lv_obj_set_style_text_font(networks_title, &lv_font_montserrat_14, 0);
 
+    Serial.println("Starting WiFi scan...");
     WiFi.scanNetworks(true);
+    currently_scanning = true;
 }
 
 void update_wifi_networks()
@@ -256,6 +256,9 @@ void update_wifi_networks()
         }
 
         WiFi.scanDelete();
+    } else {
+        Serial.println("WiFi scan failed");
+        currently_scanning = false;
     }
 }
 
@@ -306,7 +309,7 @@ void WifiSettingsScreen::init()
     lv_obj_t *title = lv_label_create(wrapper);
     lv_label_set_text(title, "WiFi Settings");
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
 
     lv_obj_t *top_card = ui_settings_card(wrapper);
 
@@ -344,11 +347,29 @@ void WifiSettingsScreen::init()
                         {
         lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
         if(lv_obj_has_state(sw, LV_STATE_CHECKED)) {
+            config.wifi.enable = true;
+            saveConfig();
+            WiFi.mode(WIFI_STA);
+            Serial.println("WiFi enabled");
+            
             if (wifi_networks_card == nullptr) {
                 lv_obj_t *wrapper = lv_obj_get_parent(lv_obj_get_parent(lv_obj_get_parent(sw)));
                 init_wifi_networks_card(wrapper);
             }
+            
+            // Try non-blocking auto-connect after starting scan
+            if (strlen(config.wifi.ssid) > 0 && config.wifi.autoConnect) {
+                Serial.printf("Auto-connecting to %s...\n", config.wifi.ssid);
+                WiFi.begin(config.wifi.ssid, config.wifi.password);
+            }
         } else {
+            config.wifi.enable = false;
+            saveConfig();
+            
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+            Serial.println("WiFi disabled and disconnected");
+            
             if (wifi_networks_card != nullptr) {
                 lv_obj_del(wifi_networks_card);
                 wifi_networks_card = nullptr;

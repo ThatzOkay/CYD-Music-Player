@@ -4,15 +4,12 @@
 // Global config instance
 Config config;
 
-// Preferences object
-Preferences preferences;
+static Preferences preferences;
 
 // Initialize storage
 bool initStorage() {
-    bool success = preferences.begin("config", false); // false = read/write mode
-    if (success) {
-        Serial.println("Using Preferences (NVS) for config");
-    } else {
+    bool success = preferences.begin("config", false);
+    if (!success) {
         Serial.println("Failed to initialize Preferences");
     }
     return success;
@@ -27,6 +24,9 @@ void setDefaultConfig() {
     config.wifi.autoConnect = false;
     config.wifi.connectionTimeout = 10000;
     
+    // Bluetooth defaults
+    memset(config.bluetooth.btAddr, 0, sizeof(config.bluetooth.btAddr));
+
     // Audio defaults
     config.audio.volume = 50;
     config.audio.muteOnStart = false;
@@ -34,9 +34,14 @@ void setDefaultConfig() {
     // Display defaults
     config.display.brightness = 128;
     config.display.autoBrightness = true;
+
+    // Calibration defaults
+    config.calibration.touchMinX = 0;
+    config.calibration.touchMaxX = 4095;
+    config.calibration.touchMinY = 0;
+    config.calibration.touchMaxY = 4095;
 }
 
-// Load configuration from storage
 bool loadConfig() {
     if (!initStorage()) {
         Serial.println("No storage available, using defaults");
@@ -44,18 +49,22 @@ bool loadConfig() {
         return false;
     }
     
-    // Load WiFi settings
     config.wifi.enable = preferences.getBool("wifi_enable", false);
     preferences.getString("wifi_ssid", config.wifi.ssid, sizeof(config.wifi.ssid));
     preferences.getString("wifi_pass", config.wifi.password, sizeof(config.wifi.password));
     config.wifi.autoConnect = preferences.getBool("wifi_auto", false);
     config.wifi.connectionTimeout = preferences.getUInt("wifi_timeout", 10000);
     
-    // Load audio settings
+    config.bluetooth.btAddr[0] = preferences.getUChar("bt_addr0", 0);
+    config.bluetooth.btAddr[1] = preferences.getUChar("bt_addr1", 0);
+    config.bluetooth.btAddr[2] = preferences.getUChar("bt_addr2", 0);
+    config.bluetooth.btAddr[3] = preferences.getUChar("bt_addr3", 0);
+    config.bluetooth.btAddr[4] = preferences.getUChar("bt_addr4", 0);
+    config.bluetooth.btAddr[5] = preferences.getUChar("bt_addr5", 0);
+
     config.audio.volume = preferences.getUInt("audio_vol", 50);
     config.audio.muteOnStart = preferences.getBool("audio_mute", false);
     
-    // Load display settings
     config.display.brightness = preferences.getUInt("disp_bright", 128);
     config.display.autoBrightness = preferences.getBool("disp_auto", true);
     
@@ -65,7 +74,6 @@ bool loadConfig() {
     config.calibration.touchMaxY = preferences.getInt("calib_max_y", 4095);
 
     preferences.end();
-    Serial.println("Config loaded successfully from Preferences");
     return true;
 }
 
@@ -82,6 +90,13 @@ bool saveConfig() {
     preferences.putBool("wifi_auto", config.wifi.autoConnect);
     preferences.putUInt("wifi_timeout", config.wifi.connectionTimeout);
     
+    preferences.putUChar("bt_addr0", config.bluetooth.btAddr[0]);
+    preferences.putUChar("bt_addr1", config.bluetooth.btAddr[1]);
+    preferences.putUChar("bt_addr2", config.bluetooth.btAddr[2]);
+    preferences.putUChar("bt_addr3", config.bluetooth.btAddr[3]);
+    preferences.putUChar("bt_addr4", config.bluetooth.btAddr[4]);
+    preferences.putUChar("bt_addr5", config.bluetooth.btAddr[5]);
+
     preferences.putUInt("audio_vol", config.audio.volume);
     preferences.putBool("audio_mute", config.audio.muteOnStart);
     
