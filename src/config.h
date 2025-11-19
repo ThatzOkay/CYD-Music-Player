@@ -21,18 +21,18 @@ struct DisplayConfig {
     bool autoBrightness;
 };
 
-struct Config {
-    WiFiConfig wifi;
-    AudioConfig audio;
-    DisplayConfig display;
-    CalibrationConfig calibration;
-};
-
 struct CalibrationConfig {
     int touchMinX;
     int touchMaxX;
     int touchMinY;
     int touchMaxY;
+};
+
+struct Config {
+    WiFiConfig wifi;
+    AudioConfig audio;
+    DisplayConfig display;
+    CalibrationConfig calibration;
 };
 
 // External declaration - the actual instance will be defined in config.cpp

@@ -3,7 +3,6 @@
 #include <lvgl.h>
 
 #include <TFT_eSPI.h>
-#include <XPT2046_Touchscreen.h>
 
 #include "FS.h"
 #include "SD.h"
@@ -12,23 +11,12 @@
 
 #include "config.h"
 #include <WiFi.h>
+#include "commons.h"
+#include <XPT2046_Touchscreen.h>
 
-#define XPT2046_IRQ 36
-#define XPT2046_MOSI 32
-#define XPT2046_MISO 39
-#define XPT2046_CLK 25
-#define XPT2046_CS 33
 SPIClass touchscreenSpi = SPIClass(VSPI);
 XPT2046_Touchscreen touchscreen(XPT2046_CS, XPT2046_IRQ);
 uint16_t touchScreenMinimumX = 200, touchScreenMaximumX = 3700, touchScreenMinimumY = 240, touchScreenMaximumY = 3800;
-
-#define LDR_PIN 34
-#define BACKLIGHT_PIN 21
-
-#define TFT_HOR_RES 320
-#define TFT_VER_RES 240
-
-#define DRAW_BUF_SIZE (TFT_HOR_RES * TFT_VER_RES / 10 * (LV_COLOR_DEPTH / 8))
 
 void flush_disp(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
@@ -40,18 +28,17 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
   if (touchscreen.touched())
   {
     TS_Point p = touchscreen.getPoint();
-    // Some very basic auto calibration so it doesn't go out of range
-    if (p.x < touchScreenMinimumX)
-      touchScreenMinimumX = p.x;
-    if (p.x > touchScreenMaximumX)
-      touchScreenMaximumX = p.x;
-    if (p.y < touchScreenMinimumY)
-      touchScreenMinimumY = p.y;
-    if (p.y > touchScreenMaximumY)
-      touchScreenMaximumY = p.y;
-    // Map this to the pixel position
-    data->point.x = map(p.x, touchScreenMinimumX, touchScreenMaximumX, 1, TFT_HOR_RES); /* Touchscreen X calibration */
-    data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 1, TFT_VER_RES); /* Touchscreen Y calibration */
+
+    data->point.x = map(p.x,
+                        config.calibration.touchMinX,
+                        config.calibration.touchMaxX,
+                        0, TFT_HOR_RES - 1);
+
+    data->point.y = map(p.y,
+                        config.calibration.touchMinY,
+                        config.calibration.touchMaxY,
+                        0, TFT_VER_RES - 1);
+
     data->state = LV_INDEV_STATE_PRESSED;
   }
   else
@@ -161,25 +148,66 @@ void initBrightness()
 {
   pinMode(LDR_PIN, INPUT);
   pinMode(BACKLIGHT_PIN, OUTPUT);
-  ledcSetup(0, 5000, 8); // Channel 0, 5kHz, 8-bit resolution
-  ledcAttachPin(BACKLIGHT_PIN, 0);
+
+  // Setting up the LEDC and configuring the Back light pin
+  // NOTE: this needs to be done after tft.init()
+#if ESP_IDF_VERSION_MAJOR == 5
+  ledcAttach(BACKLIGHT_PIN, 5000, LEDC_TIMER_12_BIT);
+#else
+  ledcSetup(LEDC_CHANNEL_0, 5000, LEDC_TIMER_12_BIT);
+  ledcAttachPin(BACKLIGHT_PIN, LEDC_CHANNEL_0);
+#endif
 }
 
 void updateBrightness()
 {
-  int ldrValue = analogRead(LDR_PIN);
-  // Map LDR reading (0-4095) to brightness (50-255)
-  // Lower LDR value = darker environment = lower brightness
-  int brightness = map(ldrValue, 0, 300, 50, 255);
-  brightness = constrain(brightness, 50, 255);
-  ledcWrite(0, brightness);
+  if (config.display.autoBrightness == false)
+  {
+    ledcWriteChannel(LEDC_CHANNEL_0, config.display.brightness);
+  }
+  else
+  {
+    int ldrValue = analogRead(LDR_PIN);
+    // Map LDR reading (0-4095) to brightness (50-255)
+    // Lower LDR value = darker environment = lower brightness
+    int brightness = map(ldrValue, 0, 300, 50, 255);
+    brightness = constrain(brightness, 50, 255);
+    ledcWriteChannel(LEDC_CHANNEL_0, brightness);
+  }
+}
+
+void lvglTask(void *pv)
+{
+  while (1)
+  {
+    lv_tick_inc(millis() - lastTick);
+    lastTick = millis();
+    lv_timer_handler();
+
+    if (millis() - lastBrightnessUpdate > 1000)
+    {
+      updateBrightness();
+      lastBrightnessUpdate = millis();
+    }
+
+    music_player_ui_handle_events();
+
+    delay(5);
+  }
+}
+
+void audioTask(void *pv)
+{
+  while (1)
+  {
+    // Placeholder for audio handling code
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
 }
 
 void setup()
 {
   Serial.begin(115200);
-
-  analogSetAttenuation(ADC_0db);
 
   pinMode(LDR_PIN, INPUT);
 
@@ -188,26 +216,42 @@ void setup()
 
   loadConfig();
 
-  if (strlen(config.wifi.ssid) > 0 && strlen(config.wifi.password) > 0) {
+  pinMode(0, INPUT_PULLUP);
+  if (digitalRead(0) == LOW)
+  {
+    Serial.println("Boot button held - resetting config...");
+    setDefaultConfig();
+    saveConfig();
+    Serial.println("Config reset complete!");
+  }
+
+  if (strlen(config.wifi.ssid) > 0 && strlen(config.wifi.password) > 0)
+  {
     Serial.println("WiFi credentials found, connecting...");
     WiFi.begin(config.wifi.ssid, config.wifi.password);
-    
+
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    while (WiFi.status() != WL_CONNECTED && attempts < 20)
+    {
       delay(500);
       Serial.print(".");
       attempts++;
     }
-    
-    if (WiFi.status() == WL_CONNECTED) {
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
       Serial.println();
       Serial.print("WiFi connected! IP address: ");
       Serial.println(WiFi.localIP());
-    } else {
+    }
+    else
+    {
       Serial.println();
       Serial.println("WiFi connection failed");
     }
-  } else {
+  }
+  else
+  {
     Serial.println("No WiFi credentials configured");
   }
 
@@ -220,21 +264,27 @@ void setup()
   initBrightness();
 
   music_player_ui_init();
+
+  xTaskCreatePinnedToCore(
+      lvglTask,
+      "LVGL",
+      7168,
+      NULL,
+      1,
+      NULL,
+      1);
+
+  xTaskCreatePinnedToCore(
+      audioTask,
+      "Audio",
+      2048,
+      NULL,
+      1,
+      NULL,
+      0);
 }
 
 void loop()
 {
-  lv_tick_inc(millis() - lastTick);
-  lastTick = millis();
-  lv_timer_handler();
-  
-  if (millis() - lastBrightnessUpdate > 1000)
-  {
-    updateBrightness();
-    lastBrightnessUpdate = millis();
-  }
-
-  music_player_ui_handle_events();
-  
-  delay(5);
+  vTaskDelay(portMAX_DELAY);
 }
