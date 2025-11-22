@@ -55,13 +55,6 @@ bool loadConfig() {
     config.wifi.autoConnect = preferences.getBool("wifi_auto", false);
     config.wifi.connectionTimeout = preferences.getUInt("wifi_timeout", 10000);
     
-    config.bluetooth.btAddr[0] = preferences.getUChar("bt_addr0", 0);
-    config.bluetooth.btAddr[1] = preferences.getUChar("bt_addr1", 0);
-    config.bluetooth.btAddr[2] = preferences.getUChar("bt_addr2", 0);
-    config.bluetooth.btAddr[3] = preferences.getUChar("bt_addr3", 0);
-    config.bluetooth.btAddr[4] = preferences.getUChar("bt_addr4", 0);
-    config.bluetooth.btAddr[5] = preferences.getUChar("bt_addr5", 0);
-
     config.audio.volume = preferences.getUInt("audio_vol", 50);
     config.audio.muteOnStart = preferences.getBool("audio_mute", false);
     

@@ -13,16 +13,20 @@
 #include <WiFi.h>
 #include "commons.h"
 #include <XPT2046_Touchscreen.h>
+<<<<<<< HEAD
 #include "id3v1/parser.h"
 
 #include <ESP32I2SAudio.h>
 #include <BackgroundAudioAAC.h>
+=======
+>>>>>>> 24b08827dc0435804973717bc3cd4bb83402f255
 
 SPIClass touchscreenSpi = SPIClass(VSPI);
 SPIClass sdCardSpi = SPIClass(VSPI);
 XPT2046_Touchscreen touchscreen(XPT2046_CS, XPT2046_IRQ);
 uint16_t touchScreenMinimumX = 200, touchScreenMaximumX = 3700, touchScreenMinimumY = 240, touchScreenMaximumY = 3800;
 
+<<<<<<< HEAD
 // Music list data shared with UI core
 struct MusicEntry
 {
@@ -75,6 +79,8 @@ void scanMp3Directory(const char *dirname, std::vector<String> &files)
   root.close();
 }
 
+=======
+>>>>>>> 24b08827dc0435804973717bc3cd4bb83402f255
 void flush_disp(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
   lv_disp_flush_ready(disp);
@@ -315,6 +321,7 @@ void updateBrightness()
   }
 }
 
+<<<<<<< HEAD
 void printMemoryUsage()
 {
   Serial.println("===== Memory Usage =====");
@@ -347,6 +354,8 @@ void printMemoryUsage()
   Serial.println("=======================");
 }
 
+=======
+>>>>>>> 24b08827dc0435804973717bc3cd4bb83402f255
 void lvglTask(void *pv)
 {
   while (1)

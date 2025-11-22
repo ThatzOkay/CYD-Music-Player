@@ -34,7 +34,6 @@ struct CalibrationConfig {
 
 struct Config {
     WiFiConfig wifi;
-    BluetoothConfig bluetooth;
     AudioConfig audio;
     DisplayConfig display;
     CalibrationConfig calibration;
